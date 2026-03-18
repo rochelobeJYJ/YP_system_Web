@@ -36,7 +36,7 @@
 
 ### Step 1. 구글 시트 데이터베이스 세팅 (Backend)
 1. 아래 링크를 클릭하여 데이터베이스 템플릿(샘플 시트)을 본인의 구글 드라이브로 복사합니다.
-   👉 **[YP 학생회 시스템 샘플 시트 복사하기]([여기에_copy로_끝나는_링크를_넣어주세요](https://docs.google.com/spreadsheets/d/1tV1D-vQW4c-vilRiv47AXN50nbAC0km86v5NxwZfbLM/copy))**
+   👉 **[YP 학생회 시스템 샘플 시트 복사하기](https://docs.google.com/spreadsheets/d/1tV1D-vQW4c-vilRiv47AXN50nbAC0km86v5NxwZfbLM/copy)**
 2. 메뉴에서 **[확장 프로그램] > [Apps Script]**를 엽니다.
 3. 본 저장소의 `Code.gs`
 4. 우측 상단 **[배포] > [새 배포]** 클릭 ➡️ 유형: 웹 앱, 실행 권한: 나, 액세스 권한: 모든 사용자 ➡️ 배포 후 생성된 **Web App URL**을 복사합니다.

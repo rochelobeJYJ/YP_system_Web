@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>YP 학생회 시스템</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="config.js"></script>
+
+    <style>
+        body { background-color: #f4f7f6; font-family: 'Pretendard', sans-serif; word-break: keep-all; }
+        .app-container { max-width: 800px; margin: 0 auto; padding-bottom: 80px; }
+        .view-section { display: none; }
+        .view-section.active { display: block; animation: fadeIn 0.3s; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        
+        .fab { position: fixed; bottom: 30px; right: 30px; background-color: #0d6efd; color: white; border: none; border-radius: 50px; padding: 15px 25px; font-weight: bold; box-shadow: 0 4px 10px rgba(0,0,0,0.2); z-index: 1000; cursor: pointer; }
+        .fab.hidden { display: none; }
+        .search-result-item { cursor: pointer; }
+        .search-result-item:hover { background-color: #f8f9fa; }
+        .schedule-table th, .schedule-table td { text-align: center; vertical-align: middle; font-size: 0.85em; padding: 5px; }
+        .today-bg { background-color: #fff3cd !important; border: 2px solid #ffc107 !important; font-weight: bold; }
+        .editable-cell { cursor: pointer; transition: 0.2s; }
+        .editable-cell:hover { background-color: #d1e7dd !important; border: 2px solid #0f5132 !important; }
+        
+        .menu-grid .btn { height: 100px; display: flex; flex-direction: column; justify-content: center; align-items: center; }
+    </style>
+</head>
+<body>
+
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4" id="top-nav" style="display: none;">
+    <div class="container app-container">
+        <a class="navbar-brand" href="#" onclick="navigate('dashboard')">YP 학생회 시스템</a>
+        <div class="d-flex align-items-center">
+            <span class="text-white me-3" id="user-info-display"></span>
+            <button class="btn btn-outline-light btn-sm text-nowrap" onclick="logout()">로그아웃</button>
+        </div>
+    </div>
+</nav>
+
+<div class="container app-container">
+    <div id="view-login" class="view-section active">
+        <div class="card shadow-sm mt-5">
+            <div class="card-body p-4">
+                <h3 class="text-center mb-4 fw-bold">YP 학생회 시스템</h3>
+                <div class="mb-3"><input type="text" id="login-id" class="form-control" placeholder="아이디 (이름)" onkeydown="handleEnter(event, handleLogin)"></div>
+                <div class="mb-3"><input type="password" id="login-pw" class="form-control" placeholder="비밀번호" onkeydown="handleEnter(event, handleLogin)"></div>
+                <div class="d-flex justify-content-between mb-4">
+                    <div class="form-check"><input class="form-check-input" type="checkbox" id="save-id"><label class="form-check-label" for="save-id">아이디 저장</label></div>
+                    <div class="form-check"><input class="form-check-input" type="checkbox" id="auto-login" checked><label class="form-check-label" for="auto-login">자동 로그인</label></div>
+                </div>
+                <button class="btn btn-primary w-100 py-2" onclick="handleLogin()">로그인</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="view-dashboard" class="view-section">
+        <div class="card bg-primary text-white shadow-sm mb-4">
+            <div class="card-body">
+                <h5 class="card-title"><i class="fas fa-bullhorn me-2"></i>오늘의 YP 당번</h5>
+                <div id="today-yp-list" class="mt-3"><span class="spinner-border spinner-border-sm"></span> 일정을 불러오는 중...</div>
+            </div>
+        </div>
+
+        <h6 class="mb-2 text-secondary fw-bold">기본 업무</h6>
+        <div class="row g-2 mb-4 menu-grid">
+            <div class="col-6"><button class="btn btn-outline-primary w-100 shadow-sm" onclick="navigate('single-entry')"><i class="fas fa-user-check fs-3 mb-2"></i>개별 기록</button></div>
+            <div class="col-6"><button class="btn btn-outline-success w-100 shadow-sm" onclick="navigate('bulk-entry')"><i class="fas fa-users fs-3 mb-2"></i>일괄 기록</button></div>
+            <div class="col-6"><button class="btn btn-outline-info w-100 shadow-sm" onclick="navigate('my-info')"><i class="fas fa-id-card fs-3 mb-2"></i>내 일정/기록</button></div>
+            <div class="col-6"><button class="btn btn-outline-secondary w-100 shadow-sm" onclick="showSettings()"><i class="fas fa-cog fs-3 mb-2"></i>설정</button></div>
+        </div>
+
+        <div id="admin-menus" style="display:none;">
+            <h6 class="mb-2 text-danger fw-bold">관리자 전용</h6>
+            <div class="row g-2 menu-grid">
+                <div class="col-6"><button class="btn btn-outline-warning w-100 shadow-sm text-dark" onclick="navigate('schedule')"><i class="fas fa-calendar-alt fs-3 mb-2"></i>전체 YP 일정</button></div>
+                <div class="col-6"><button class="btn btn-outline-danger w-100 shadow-sm" onclick="navigate('admin-stats')"><i class="fas fa-chart-line fs-3 mb-2"></i>출석/기록 현황</button></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="view-single-entry" class="view-section">
+        <button class="btn btn-sm btn-secondary mb-3" onclick="navigate('dashboard')">뒤로</button>
+        <div class="card mb-3"><div class="card-body"><input type="text" id="search-student" class="form-control mb-2" placeholder="학번/이름 검색 (엔터)" onkeyup="searchStudent()" onkeydown="handleEnter(event, selectFirstStudent)">
+        <ul class="list-group" id="search-results"></ul></div></div>
+        <div class="card"><div class="card-body"><select id="single-rule-select" class="form-select mb-3" onkeydown="handleEnter(event, submitSingleEntry)"></select><button class="btn btn-primary w-100" onclick="submitSingleEntry()">제출하기</button></div></div>
+    </div>
+
+    <div id="view-bulk-entry" class="view-section">
+        <button class="btn btn-sm btn-secondary mb-3" onclick="navigate('dashboard')">뒤로</button>
+        <div class="card"><div class="card-body">
+            <select id="bulk-rule-select" class="form-select mb-3"></select>
+            <div class="input-group mb-2"><input type="text" id="bulk-search" class="form-control" placeholder="학번/이름 추가 (엔터)" onkeydown="handleEnter(event, addBulkStudent)"><button class="btn btn-outline-secondary" onclick="addBulkStudent()">추가</button></div>
+            <ul class="list-group mb-3" id="bulk-student-list"></ul>
+            <button class="btn btn-success w-100" onclick="submitBulkEntry()">일괄 제출하기</button>
+        </div></div>
+    </div>
+
+    <div id="view-my-info" class="view-section">
+        <button class="btn btn-sm btn-secondary mb-3" onclick="navigate('dashboard')">뒤로</button>
+        
+        <h5 class="fw-bold mb-3"><i class="fas fa-calendar-check text-primary me-2"></i>나의 YP 일정</h5>
+        <div class="card shadow-sm mb-4"><div class="card-body p-0">
+            <ul class="list-group list-group-flush" id="my-schedule-list"><li class="list-group-item">불러오는 중...</li></ul>
+        </div></div>
+
+        <h5 class="fw-bold mb-3"><i class="fas fa-history text-success me-2"></i>내가 부여한 상벌점</h5>
+        <div class="card shadow-sm"><div class="card-body p-0 table-responsive" style="max-height: 300px; overflow-y: auto;">
+            <table class="table table-sm text-center mb-0" style="font-size:0.9em;">
+                <thead class="table-light"><tr><th>날짜</th><th>대상</th><th>항목(점수)</th></tr></thead>
+                <tbody id="my-records-table"><tr><td colspan="3">불러오는 중...</td></tr></tbody>
+            </table>
+        </div></div>
+    </div>
+
+    <div id="view-schedule" class="view-section">
+        <div class="d-flex justify-content-between align-items-center mb-3"><h5 class="m-0 fw-bold">전체 YP 일정</h5><button class="btn btn-sm btn-secondary" onclick="navigate('dashboard')">뒤로</button></div>
+        <div class="card shadow-sm mb-3">
+            <div class="card-body py-2 d-flex justify-content-between align-items-center bg-light">
+                <span style="font-size: 0.85em;" class="text-secondary fw-bold">클릭하여 수정</span>
+                <div>
+                    <button class="btn btn-sm btn-outline-dark me-1" onclick="downloadExcelTemplate()"><i class="fas fa-download"></i> 양식</button>
+                    <input type="file" id="excel-upload" accept=".xlsx, .xls" style="display:none;" onchange="handleExcelUpload(event)">
+                    <button class="btn btn-sm btn-success" onclick="document.getElementById('excel-upload').click()"><i class="fas fa-upload"></i> 업로드</button>
+                </div>
+            </div>
+        </div>
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <button class="btn btn-sm btn-outline-primary" onclick="changeWeek(-1)"><i class="fas fa-chevron-left"></i> 이전</button>
+            <span id="current-week-label" class="fw-bold"></span>
+            <button class="btn btn-sm btn-outline-primary" onclick="changeWeek(1)">다음 <i class="fas fa-chevron-right"></i></button>
+        </div>
+        <div class="card shadow-sm"><div class="card-body p-0 table-responsive">
+            <table class="table table-bordered mb-0 schedule-table" id="schedule-grid"><thead class="table-light" id="schedule-header"></thead><tbody></tbody></table>
+        </div></div>
+    </div>
+
+    <div id="view-admin-stats" class="view-section">
+        <div class="d-flex justify-content-between align-items-center mb-3"><h5 class="m-0 fw-bold">출석 / 기록 현황</h5><button class="btn btn-sm btn-secondary" onclick="navigate('dashboard')">뒤로</button></div>
+        <input type="date" id="admin-date-picker" class="form-control mb-3" onchange="loadAdminStats()">
+        
+        <h6 class="fw-bold text-primary"><i class="fas fa-user-check me-2"></i>일일 출석 현황</h6>
+        <div class="card shadow-sm mb-4"><div class="card-body p-0 table-responsive">
+            <table class="table table-sm text-center mb-0" style="font-size:0.85em;">
+                <thead class="table-light"><tr><th>활동(시간)</th><th>담당자</th><th>상태</th><th>사유</th></tr></thead>
+                <tbody id="admin-attendance-table"></tbody>
+            </table>
+        </div></div>
+
+        <h6 class="fw-bold text-success"><i class="fas fa-list me-2"></i>일일 상벌점 부여 내역</h6>
+        <div class="card shadow-sm"><div class="card-body p-0 table-responsive">
+            <table class="table table-sm text-center mb-0" style="font-size:0.85em;">
+                <thead class="table-light"><tr><th>대상</th><th>항목(점수)</th><th>기록자</th></tr></thead>
+                <tbody id="admin-records-table"></tbody>
+            </table>
+        </div></div>
+    </div>
+</div>
+
+<button id="fab-attendance" class="fab hidden" onclick="checkAttendance()"><i class="fas fa-check-circle me-1"></i> 출석체크</button>
+
+<script>
+    let currentUser = null, globalStudents = [], globalRules = [], bulkStudents = [], selectedStudentSingle = null;
+    let currentMonday = getMonday(new Date()); 
+
+    // 엔터키 공통 핸들러
+    function handleEnter(e, callback) { if(e.key === 'Enter') { e.preventDefault(); callback(); } }
+
+    async function callGAS(action, params = {}) {
+        params.action = action;
+        try { return await (await fetch(CONFIG.GAS_URL, { method: 'POST', body: new URLSearchParams(params) })).json(); } 
+        catch (error) { return { success: false, message: "서버 연결 실패" }; }
+    }
+
+    window.onload = () => { 
+        if(localStorage.getItem('yp_saved_id')) { document.getElementById('login-id').value = localStorage.getItem('yp_saved_id'); document.getElementById('save-id').checked = true; }
+        if(localStorage.getItem('yp_auth')) checkAutoLogin(); 
+        document.getElementById('admin-date-picker').value = formatDate(new Date());
+    };
+
+    function navigate(viewId) {
+        document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
+        document.getElementById(`view-${viewId}`).classList.add('active');
+        document.getElementById('fab-attendance').className = (viewId !== 'login') ? 'fab' : 'fab hidden';
+        if(viewId === 'schedule') loadScheduleGrid();
+        if(viewId === 'dashboard') loadTodayYP();
+        if(viewId === 'my-info') loadMyInfo();
+        if(viewId === 'admin-stats') loadAdminStats();
+    }
+
+    function applyRBAC() {
+        if (['관리자', '선도부장', '선도차장'].includes(currentUser.role)) document.getElementById('admin-menus').style.display = 'block';
+    }
+
+    async function handleLogin() {
+        const id = document.getElementById('login-id').value, pw = document.getElementById('login-pw').value;
+        if(!id || !pw) return;
+        if(document.getElementById('save-id').checked) localStorage.setItem('yp_saved_id', id); else localStorage.removeItem('yp_saved_id');
+
+        Swal.fire({ title: '로그인 중...', didOpen: () => Swal.showLoading() });
+        const res = await callGAS('login', { id, pw });
+        if (res.success) {
+            currentUser = res.user;
+            if(document.getElementById('auto-login').checked) localStorage.setItem('yp_auth', JSON.stringify(currentUser));
+            loginSuccessProcessing();
+        } else Swal.fire('실패', res.message, 'error');
+    }
+
+    async function checkAutoLogin() { currentUser = JSON.parse(localStorage.getItem('yp_auth')); loginSuccessProcessing(); }
+
+    async function loginSuccessProcessing() {
+        applyRBAC();
+        document.getElementById('top-nav').style.display = 'flex';
+        document.getElementById('user-info-display').innerHTML = `<span class="badge bg-primary me-2">${currentUser.role}</span>${currentUser.name}님`;
+        const res = await callGAS('getInitialData');
+        if(res.success) {
+            globalStudents = res.students;
+            document.getElementById('single-rule-select').innerHTML = `<option value="">선택하세요</option>` + res.rules.map(r=>`<option value="${r.name}|${r.score}">${r.name}(${r.score})</option>`).join('');
+            document.getElementById('bulk-rule-select').innerHTML = document.getElementById('single-rule-select').innerHTML;
+        }
+        navigate('dashboard'); Swal.close();
+    }
+    function logout() { localStorage.removeItem('yp_auth'); location.reload(); }
+
+    const SCHEDULE_TEMPLATE = [
+        { activity: "아침선도", time: "07:45~08:15" }, { activity: "아침선도", time: "07:45~08:15" },
+        { activity: "점심엘베", time: "12:25~12:40" }, { activity: "점심엘베", time: "12:40~13:00" }, { activity: "점심엘베", time: "13:00~13:15" },
+        { activity: "점심순찰", time: "12:50~13:15" }, { activity: "점심순찰", time: "12:50~13:15" }
+    ];
+    const DAYS_KR = ["일", "월", "화", "수", "목", "금", "토"];
+
+    function getMonday(d) { d = new Date(d); var day = d.getDay(), diff = d.getDate() - day + (day == 0 ? -6:1); return new Date(d.setDate(diff)); }
+    function formatDate(d) { return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+    function changeWeek(offset) { currentMonday.setDate(currentMonday.getDate() + (offset * 7)); loadScheduleGrid(); }
+
+    async function loadScheduleGrid() {
+        document.querySelector('#schedule-grid tbody').innerHTML = `<tr><td colspan="6" class="py-4">일정 로딩 중...</td></tr>`;
+        let headerHtml = `<tr><th style="width:18%;">활동</th>`, weekDates = [], todayStr = formatDate(new Date());
+        for(let i=0; i<5; i++) {
+            let tempDate = new Date(currentMonday); tempDate.setDate(currentMonday.getDate() + i);
+            let dStr = formatDate(tempDate); weekDates.push(dStr);
+            headerHtml += `<th class="${dStr === todayStr ? 'bg-warning text-dark' : ''}">${DAYS_KR[i+1]}<br><small>(${tempDate.getMonth()+1}/${tempDate.getDate()})</small></th>`;
+        }
+        document.getElementById('schedule-header').innerHTML = headerHtml + `</tr>`;
+        document.getElementById('current-week-label').innerText = `${currentMonday.getMonth()+1}월 둘째주`;
+
+        const res = await callGAS('getSchedule', { startDate: formatDate(currentMonday) });
+        let availableData = res.success ? JSON.parse(JSON.stringify(res.schedule)) : [];
+        
+        let html = '';
+        SCHEDULE_TEMPLATE.forEach(row => {
+            html += `<tr><td style="font-size:0.75em; line-height: 1.2;"><b>${row.activity}</b><br><span class="text-secondary">${row.time}</span></td>`;
+            for(let i=0; i<5; i++) {
+                let targetDate = weekDates[i];
+                const index = availableData.findIndex(d => d.date === targetDate && d.activity === row.activity && d.time === row.time);
+                let display = "", currentName = "";
+                if (index !== -1) {
+                    const record = availableData[index]; currentName = record.studentName;
+                    display = `<b>${record.studentName}</b><br><small class="text-muted">${record.hakbun}</small>`;
+                    availableData.splice(index, 1); 
+                }
+                let cellClass = (currentUser.role === '관리자' || currentUser.role === '선도부장') ? "editable-cell" : "";
+                let onClick = cellClass ? `onclick="editScheduleCell(this, '${targetDate}', '${DAYS_KR[i+1]}', '${row.activity}', '${row.time}', '${currentName}')"` : "";
+                html += `<td class="${targetDate === todayStr ? 'today-bg' : ''} ${cellClass}" ${onClick}>${display}</td>`;
+            }
+            html += `</tr>`;
+        });
+        document.querySelector('#schedule-grid tbody').innerHTML = html;
+    }
+
+    async function editScheduleCell(cell, date, day, activity, time, currentName) {
+        const { value: newName, isConfirmed } = await Swal.fire({ title: '담당자 수정', input: 'text', inputLabel: '이름 입력 (삭제시 비움)', inputValue: currentName, showCancelButton: true, confirmButtonText: '저장' });
+        if (isConfirmed && newName !== currentName) {
+            Swal.fire({ title: '반영 중...', didOpen: () => Swal.showLoading() });
+            const res = await callGAS('updateSingleSchedule', { payload: JSON.stringify({ user: currentUser, date, day, activity, time, newName: newName.replace(/\s+/g, '') }) });
+            if (res.success) { Swal.fire({icon: 'success', title: '완료', timer: 1000, showConfirmButton: false}); loadScheduleGrid(); } 
+            else Swal.fire('오류', res.message, 'error');
+        }
+    }
+
+    async function loadTodayYP() {
+        const todayStr = formatDate(new Date()); const res = await callGAS('getSchedule', { startDate: todayStr });
+        if(!res.success) return;
+        const todays = res.schedule.filter(s => s.date === todayStr);
+        let html = '';
+        if(todays.length === 0) html = `<p class="mb-0">배정된 일정이 없습니다.</p>`;
+        else {
+            let acts = { "아침선도": [], "점심엘베": [], "점심순찰": [] };
+            todays.forEach(t => { if(acts[t.activity]) acts[t.activity].push(`${t.studentName}(${t.time})`); });
+            html += `<ul class="list-unstyled mb-0" style="font-size: 0.9em;">`;
+            for(let a in acts) { if(acts[a].length > 0) html += `<li class="mb-1"><b>[${a}]</b> ${acts[a].join(', ')}</li>`; }
+            html += `</ul>`;
+        }
+        document.getElementById('today-yp-list').innerHTML = html;
+    }
+
+    async function loadMyInfo() {
+        const res = await callGAS('getMyInfo', { payload: JSON.stringify({ user: currentUser }) });
+        if(res.success) {
+            const sHtml = res.schedules.length === 0 ? `<li class="list-group-item text-muted">예정된 일정이 없습니다.</li>` : 
+                res.schedules.map(s => `<li class="list-group-item"><b>${s.date}(${s.day})</b> - ${s.activity} <span class="badge bg-secondary ms-2">${s.time}</span></li>`).join('');
+            document.getElementById('my-schedule-list').innerHTML = sHtml;
+
+            const rHtml = res.records.length === 0 ? `<tr><td colspan="3" class="text-muted">기록이 없습니다.</td></tr>` : 
+                res.records.map(r => `<tr><td>${r.date.substring(5)}</td><td>${r.target}</td><td>${r.rule}</td></tr>`).join('');
+            document.getElementById('my-records-table').innerHTML = rHtml;
+        }
+    }
+
+    async function loadAdminStats() {
+        const dateStr = document.getElementById('admin-date-picker').value;
+        const res = await callGAS('getAdminData', { dateStr });
+        if(res.success) {
+            const aHtml = res.attendance.length === 0 ? `<tr><td colspan="4">일정이 없습니다.</td></tr>` :
+                res.attendance.map(a => `<tr><td>${a.activity}<br><small class="text-muted">${a.time}</small></td><td>${a.name}</td>
+                <td><span class="badge ${a.status.includes('정상')?'bg-success':a.status.includes('미출석')?'bg-danger':'bg-warning'}">${a.status}</span></td>
+                <td>${a.excuse}</td></tr>`).join('');
+            document.getElementById('admin-attendance-table').innerHTML = aHtml;
+
+            const rHtml = res.records.length === 0 ? `<tr><td colspan="3">기록이 없습니다.</td></tr>` :
+                res.records.map(r => `<tr><td>${r.target}</td><td>${r.rule}</td><td>${r.author}</td></tr>`).join('');
+            document.getElementById('admin-records-table').innerHTML = rHtml;
+        }
+    }
+
+    function searchStudent() {
+        const q = document.getElementById('search-student').value;
+        if(q.length < 2) return document.getElementById('search-results').innerHTML = '';
+        const list = globalStudents.filter(s=>s.hakbun.includes(q)||s.name.includes(q)).slice(0,5);
+        document.getElementById('search-results').innerHTML = list.map(s=>`<li class="list-group-item search-result-item" onclick="selectedStudentSingle={hakbun:'${s.hakbun}',name:'${s.name}'}; document.getElementById('search-student').value='${s.hakbun} ${s.name}'; this.parentElement.innerHTML='';">${s.hakbun} ${s.name}</li>`).join('');
+    }
+
+    function selectFirstStudent() {
+        const first = document.querySelector('#search-results .search-result-item');
+        if(first) first.click();
+    }
+
+    function renderBulkStudentList() {
+        document.getElementById('bulk-student-list').innerHTML = bulkStudents.map((b,i)=>`
+            <li class="list-group-item d-flex justify-content-between align-items-center">${b.hakbun} ${b.name} <button class="btn btn-sm text-danger" onclick="removeBulkStudent(${i})"><i class="fas fa-times"></i></button></li>
+        `).join('');
+    }
+
+    function removeBulkStudent(index) { bulkStudents.splice(index, 1); renderBulkStudentList(); }
+
+    function addBulkStudent() {
+        const q = document.getElementById('bulk-search').value;
+        const s = globalStudents.find(x => x.hakbun === q || x.name === q);
+        if(s && !bulkStudents.find(b=>b.hakbun===s.hakbun)) { bulkStudents.push(s); renderBulkStudentList(); document.getElementById('bulk-search').value = ''; }
+    }
+
+    async function submitSingleEntry() {
+        const rule = document.getElementById('single-rule-select').value;
+        if(!selectedStudentSingle || !rule) return Swal.fire('누락', '모두 입력하세요', 'warning');
+        executeSubmit({ user: currentUser, type: 'single', rule, students: [selectedStudentSingle] });
+    }
+
+    async function submitBulkEntry() {
+        const rule = document.getElementById('bulk-rule-select').value;
+        if(bulkStudents.length===0 || !rule) return Swal.fire('누락', '모두 입력하세요', 'warning');
+        executeSubmit({ user: currentUser, type: 'bulk', rule, students: bulkStudents });
+    }
+
+    async function executeSubmit(payload) {
+        Swal.fire({ title: '전송 중...', didOpen: () => Swal.showLoading() });
+        const res = await callGAS('submitEntry', { payload: JSON.stringify(payload) });
+        if(res.success) {
+            Swal.fire('완료', res.message, 'success');
+            document.getElementById('search-student').value = ''; selectedStudentSingle = null;
+            bulkStudents = []; renderBulkStudentList();
+        } else Swal.fire('오류', res.message, 'error');
+    }
+
+    // 🔥 수동 출석 체크 로직 (사유 입력)
+    async function checkAttendance() {
+        // 우선 사유 없이 출석 요청하여 시간 유효성 확인
+        Swal.fire({ title: '확인 중...', didOpen: () => Swal.showLoading() });
+        let res = await callGAS('checkAttendance', { payload: JSON.stringify({ user: currentUser }) });
+        
+        if(res.success) return Swal.fire('안내', res.message, 'success');
+        
+        // 담당 시간이 아닐 경우 사유 요구
+        if(res.requireExcuse) {
+            const { value: excuse } = await Swal.fire({
+                title: '지연 출석 사유', text: res.message, input: 'textarea',
+                inputPlaceholder: '사유를 10글자 이상 입력하세요.', showCancelButton: true,
+                inputValidator: (val) => { if (!val || val.length < 10) return '10글자 이상 작성해주세요!'; }
+            });
+            if (excuse) {
+                Swal.fire({ title: '전송 중...', didOpen: () => Swal.showLoading() });
+                const finalRes = await callGAS('checkAttendance', { payload: JSON.stringify({ user: currentUser, excuse }) });
+                if(finalRes.success) Swal.fire('완료', finalRes.message, 'success');
+                else Swal.fire('오류', finalRes.message, 'error');
+            }
+        } else {
+            Swal.fire('오류', res.message, 'error');
+        }
+    }
+
+    function showSettings() {
+        Swal.fire({
+            title: '비번 변경', 
+            html: `<input type="password" id="old-pw" class="swal2-input" placeholder="현재 비번" onkeydown="handleEnter(event, Swal.clickConfirm)">
+                   <input type="password" id="new-pw" class="swal2-input" placeholder="새 비번" onkeydown="handleEnter(event, Swal.clickConfirm)">
+                   <input type="password" id="new-pw-confirm" class="swal2-input" placeholder="새 비번 확인" onkeydown="handleEnter(event, Swal.clickConfirm)">`,
+            preConfirm: () => {
+                const o = document.getElementById('old-pw').value, n1 = document.getElementById('new-pw').value, n2 = document.getElementById('new-pw-confirm').value;
+                if(!o || !n1 || !n2) return Swal.showValidationMessage('세 칸을 모두 입력하세요.');
+                if(n1 !== n2) return Swal.showValidationMessage('새 비밀번호가 일치하지 않습니다.');
+                return { oldPw: o, newPw: n1 };
+            }
+        }).then(async (res) => {
+            if(res.isConfirmed) {
+                const rt = await callGAS('changePw', { id: currentUser.id, oldPw: res.value.oldPw, newPw: res.value.newPw });
+                if(rt.success) Swal.fire('성공', '변경되었습니다.', 'success'); else Swal.fire('오류', rt.message, 'error');
+            }
+        });
+    }
+
+    function downloadExcelTemplate() { /* 기존 로직 생략 없이 동일 */
+        let data = [["날짜(YYYY-MM-DD)", "요일", "활동", "시작시간", "종료시간", "이름"]];
+        let tempDates = [];
+        for(let i=0; i<5; i++) {
+            let d = new Date(currentMonday); d.setDate(currentMonday.getDate() + i); tempDates.push({ dateStr: formatDate(d), dayStr: DAYS_KR[i+1] });
+        }
+        tempDates.forEach(td => { SCHEDULE_TEMPLATE.forEach(st => { const [start, end] = st.time.split('~'); data.push([td.dateStr, td.dayStr, st.activity, start, end, ""]); }); });
+        const ws = XLSX.utils.aoa_to_sheet(data); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "YP일정양식"); XLSX.writeFile(wb, `YP일정양식_${formatDate(currentMonday)}.xlsx`);
+    }
+
+    function handleExcelUpload(e) { /* 기존 로직 생략 없이 동일 */
+        const file = e.target.files[0]; if(!file) return; const reader = new FileReader();
+        reader.onload = async function(e) {
+            const data = new Uint8Array(e.target.result); const json = XLSX.utils.sheet_to_json(XLSX.read(data, {type: 'array'}).Sheets[XLSX.read(data, {type: 'array'}).SheetNames[0]], {raw: false});
+            let scheduleData = [];
+            json.forEach(row => { if(row["이름"]) scheduleData.push({ date: row["날짜(YYYY-MM-DD)"], day: row["요일"], activity: row["활동"], time: `${row["시작시간"]}~${row["종료시간"]}`, studentName: row["이름"].toString().replace(/\s+/g, '') }); });
+            if(scheduleData.length === 0) return Swal.fire('안내', '입력된 이름 데이터가 없습니다.', 'info');
+            Swal.fire({ title: '업로드 및 검증 중...', didOpen: () => Swal.showLoading() });
+            const res = await callGAS('uploadSchedule', { payload: JSON.stringify({ user: currentUser, scheduleData }) });
+            if(res.success) { Swal.fire('성공', res.message, 'success'); loadScheduleGrid(); } else Swal.fire('업로드 실패', res.message, 'error');
+            document.getElementById('excel-upload').value = ''; 
+        };
+        reader.readAsArrayBuffer(file);
+    }
+</script>
+</body>
+</html>

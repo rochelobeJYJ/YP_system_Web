@@ -27,6 +27,13 @@
         .editable-cell:hover { background-color: #d1e7dd !important; border: 2px solid #0f5132 !important; }
         
         .menu-grid .btn { height: 100px; display: flex; flex-direction: column; justify-content: center; align-items: center; }
+        .menu-grid .btn-horizontal { height: 60px; flex-direction: row; gap: 10px; }
+        
+        .board-item { cursor: pointer; transition: 0.2s; border-left: 4px solid transparent; }
+        .board-item:hover { background-color: #f8f9fa; border-left-color: #0d6efd; }
+        .board-notice { background-color: #fff8e6; border-left-color: #ffc107 !important; }
+        .board-notice:hover { background-color: #ffeeb5; }
+        .comment-box { background-color: #f1f3f5; border-radius: 8px; padding: 10px; margin-bottom: 10px; }
     </style>
 </head>
 <body>
@@ -36,6 +43,7 @@
         <a class="navbar-brand" href="#" onclick="navigate('dashboard')">YP 학생회 시스템</a>
         <div class="d-flex align-items-center">
             <span class="text-white me-3" id="user-info-display"></span>
+            <button class="btn btn-outline-light btn-sm text-nowrap me-2" onclick="showSettings()"><i class="fas fa-cog"></i> 설정</button>
             <button class="btn btn-outline-light btn-sm text-nowrap" onclick="logout()">로그아웃</button>
         </div>
     </div>
@@ -60,7 +68,7 @@
     <div id="view-dashboard" class="view-section">
         <div class="card bg-primary text-white shadow-sm mb-4">
             <div class="card-body">
-                <h5 class="card-title"><i class="fas fa-bullhorn me-2"></i>오늘의 YP 당번</h5>
+                <h5 class="card-title fw-bold" id="today-yp-title"><i class="fas fa-bullhorn me-2"></i>오늘의 YP 당번</h5>
                 <div id="today-yp-list" class="mt-3"><span class="spinner-border spinner-border-sm"></span> 일정을 불러오는 중...</div>
             </div>
         </div>
@@ -70,15 +78,71 @@
             <div class="col-6"><button class="btn btn-outline-primary w-100 shadow-sm" onclick="navigate('single-entry')"><i class="fas fa-user-check fs-3 mb-2"></i>개별 기록</button></div>
             <div class="col-6"><button class="btn btn-outline-success w-100 shadow-sm" onclick="navigate('bulk-entry')"><i class="fas fa-users fs-3 mb-2"></i>일괄 기록</button></div>
             <div class="col-6"><button class="btn btn-outline-info w-100 shadow-sm" onclick="navigate('my-info')"><i class="fas fa-id-card fs-3 mb-2"></i>내 일정/기록</button></div>
-            <div class="col-6"><button class="btn btn-outline-secondary w-100 shadow-sm" onclick="showSettings()"><i class="fas fa-cog fs-3 mb-2"></i>설정</button></div>
+            <div class="col-6"><button class="btn btn-outline-warning w-100 shadow-sm text-dark" onclick="navigate('schedule')"><i class="fas fa-calendar-alt fs-3 mb-2"></i>전체 YP 일정</button></div>
+            
         </div>
 
-        <div id="admin-menus" style="display:none;">
+        <div id="admin-menus" style="display:none;" class="mb-4">
             <h6 class="mb-2 text-danger fw-bold">관리자 전용</h6>
             <div class="row g-2 menu-grid">
-                <div class="col-6"><button class="btn btn-outline-warning w-100 shadow-sm text-dark" onclick="navigate('schedule')"><i class="fas fa-calendar-alt fs-3 mb-2"></i>전체 YP 일정</button></div>
-                <div class="col-6"><button class="btn btn-outline-danger w-100 shadow-sm" onclick="navigate('admin-stats')"><i class="fas fa-chart-line fs-3 mb-2"></i>출석/기록 현황</button></div>
+                <div class="col-12"><button class="btn btn-outline-danger w-100 shadow-sm btn-horizontal" onclick="navigate('admin-stats')"><i class="fas fa-chart-line fs-4"></i>출석 및 기록 현황판</button></div>
             </div>
+        </div>
+
+        <div class="d-flex justify-content-between align-items-center mb-2 mt-4">
+            <h6 class="m-0 fw-bold"><i class="fas fa-clipboard-list text-primary me-2"></i>YP 소통 게시판</h6>
+            <button class="btn btn-sm btn-primary" onclick="initBoardWrite()"><i class="fas fa-pen"></i> 글쓰기</button>
+        </div>
+        <div class="card shadow-sm mb-4">
+            <ul class="list-group list-group-flush" id="board-list-container">
+                <li class="list-group-item text-center py-4"><span class="spinner-border spinner-border-sm"></span> 불러오는 중...</li>
+            </ul>
+        </div>
+    </div>
+
+    <div id="view-board-write" class="view-section">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="m-0 fw-bold" id="board-write-title">새 게시글 작성</h5>
+            <button class="btn btn-sm btn-secondary" onclick="navigate('dashboard')">취소</button>
+        </div>
+        <div class="card shadow-sm mb-3">
+            <div class="card-body">
+                <div class="form-check mb-3" id="notice-check-wrapper" style="display:none;">
+                    <input class="form-check-input" type="checkbox" id="post-is-notice">
+                    <label class="form-check-label text-danger fw-bold" for="post-is-notice"><i class="fas fa-bullhorn"></i> 공지사항으로 등록</label>
+                </div>
+                <input type="text" id="post-title" class="form-control mb-3" placeholder="제목을 입력하세요">
+                <textarea id="post-content" class="form-control mb-3" rows="8" placeholder="내용을 입력하세요"></textarea>
+                <button class="btn btn-primary w-100" onclick="submitPost()">등록하기</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="view-board-read" class="view-section">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="m-0 fw-bold">게시글 보기</h5>
+            <div>
+                <span id="read-post-actions"></span>
+                <button class="btn btn-sm btn-secondary" onclick="navigate('dashboard')">목록으로</button>
+            </div>
+        </div>
+        <div class="card shadow-sm mb-3">
+            <div class="card-body">
+                <div id="read-post-badge" class="mb-2"></div>
+                <h4 class="fw-bold mb-3" id="read-post-title"></h4>
+                <div class="d-flex justify-content-between text-muted" style="font-size:0.85em; border-bottom:1px solid #eee; padding-bottom:10px; mb-3">
+                    <span id="read-post-author"></span>
+                    <span id="read-post-time"></span>
+                </div>
+                <div class="mt-3 mb-4" id="read-post-content" style="white-space: pre-wrap; line-height: 1.6;"></div>
+            </div>
+        </div>
+        
+        <h6 class="fw-bold"><i class="fas fa-comments text-success me-2"></i>댓글</h6>
+        <div id="comment-list-container" class="mb-3"></div>
+        <div class="input-group">
+            <input type="text" id="comment-input" class="form-control" placeholder="댓글을 남겨보세요" onkeydown="handleEnter(event, submitComment)">
+            <button class="btn btn-success" onclick="submitComment()">등록</button>
         </div>
     </div>
 
@@ -101,26 +165,25 @@
 
     <div id="view-my-info" class="view-section">
         <button class="btn btn-sm btn-secondary mb-3" onclick="navigate('dashboard')">뒤로</button>
-        
         <h5 class="fw-bold mb-3"><i class="fas fa-calendar-check text-primary me-2"></i>나의 YP 일정</h5>
-        <div class="card shadow-sm mb-4"><div class="card-body p-0">
-            <ul class="list-group list-group-flush" id="my-schedule-list"><li class="list-group-item">불러오는 중...</li></ul>
-        </div></div>
-
+        <div class="card shadow-sm mb-4"><div class="card-body p-0"><ul class="list-group list-group-flush" id="my-schedule-list"><li class="list-group-item">불러오는 중...</li></ul></div></div>
         <h5 class="fw-bold mb-3"><i class="fas fa-history text-success me-2"></i>내가 부여한 상벌점</h5>
         <div class="card shadow-sm"><div class="card-body p-0 table-responsive" style="max-height: 300px; overflow-y: auto;">
-            <table class="table table-sm text-center mb-0" style="font-size:0.9em;">
-                <thead class="table-light"><tr><th>날짜</th><th>대상</th><th>항목(점수)</th></tr></thead>
-                <tbody id="my-records-table"><tr><td colspan="3">불러오는 중...</td></tr></tbody>
-            </table>
+            <table class="table table-sm text-center mb-0" style="font-size:0.9em;"><thead class="table-light"><tr><th>날짜</th><th>대상</th><th>항목(점수)</th></tr></thead><tbody id="my-records-table"><tr><td colspan="3">불러오는 중...</td></tr></tbody></table>
         </div></div>
     </div>
 
     <div id="view-schedule" class="view-section">
-        <div class="d-flex justify-content-between align-items-center mb-3"><h5 class="m-0 fw-bold">전체 YP 일정</h5><button class="btn btn-sm btn-secondary" onclick="navigate('dashboard')">뒤로</button></div>
-        <div class="card shadow-sm mb-3">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="m-0 fw-bold">전체 YP 일정</h5>
+            <div>
+                <button class="btn btn-sm btn-danger me-1" id="btn-save-schedule" style="display:none;" onclick="saveGridChanges()"><i class="fas fa-save"></i> 변경사항 저장</button>
+                <button class="btn btn-sm btn-secondary" onclick="navigate('dashboard')">뒤로</button>
+            </div>
+        </div>
+        <div id="admin-schedule-controls" class="card shadow-sm mb-3" style="display:none;">
             <div class="card-body py-2 d-flex justify-content-between align-items-center bg-light">
-                <span style="font-size: 0.85em;" class="text-secondary fw-bold">클릭하여 수정</span>
+                <span style="font-size: 0.85em;" class="text-secondary fw-bold">클릭하여 수정 (관리자 기능)</span>
                 <div>
                     <button class="btn btn-sm btn-outline-dark me-1" onclick="downloadExcelTemplate()"><i class="fas fa-download"></i> 양식</button>
                     <input type="file" id="excel-upload" accept=".xlsx, .xls" style="display:none;" onchange="handleExcelUpload(event)">
@@ -133,40 +196,54 @@
             <span id="current-week-label" class="fw-bold"></span>
             <button class="btn btn-sm btn-outline-primary" onclick="changeWeek(1)">다음 <i class="fas fa-chevron-right"></i></button>
         </div>
-        <div class="card shadow-sm"><div class="card-body p-0 table-responsive">
-            <table class="table table-bordered mb-0 schedule-table" id="schedule-grid"><thead class="table-light" id="schedule-header"></thead><tbody></tbody></table>
-        </div></div>
+        <div class="card shadow-sm"><div class="card-body p-0 table-responsive"><table class="table table-bordered mb-0 schedule-table" id="schedule-grid"><thead class="table-light" id="schedule-header"></thead><tbody></tbody></table></div></div>
     </div>
 
     <div id="view-admin-stats" class="view-section">
         <div class="d-flex justify-content-between align-items-center mb-3"><h5 class="m-0 fw-bold">출석 / 기록 현황</h5><button class="btn btn-sm btn-secondary" onclick="navigate('dashboard')">뒤로</button></div>
         <input type="date" id="admin-date-picker" class="form-control mb-3" onchange="loadAdminStats()">
-        
         <h6 class="fw-bold text-primary"><i class="fas fa-user-check me-2"></i>일일 출석 현황</h6>
         <div class="card shadow-sm mb-4"><div class="card-body p-0 table-responsive">
-            <table class="table table-sm text-center mb-0" style="font-size:0.85em;">
-                <thead class="table-light"><tr><th>활동(시간)</th><th>담당자</th><th>상태</th><th>사유</th></tr></thead>
-                <tbody id="admin-attendance-table"></tbody>
-            </table>
+            <table class="table table-sm text-center mb-0" style="font-size:0.85em;"><thead class="table-light"><tr><th>활동(시간)</th><th>담당자</th><th>상태</th><th>사유</th></tr></thead><tbody id="admin-attendance-table"></tbody></table>
         </div></div>
-
         <h6 class="fw-bold text-success"><i class="fas fa-list me-2"></i>일일 상벌점 부여 내역</h6>
         <div class="card shadow-sm"><div class="card-body p-0 table-responsive">
-            <table class="table table-sm text-center mb-0" style="font-size:0.85em;">
-                <thead class="table-light"><tr><th>대상</th><th>항목(점수)</th><th>기록자</th></tr></thead>
-                <tbody id="admin-records-table"></tbody>
-            </table>
+            <table class="table table-sm text-center mb-0" style="font-size:0.85em;"><thead class="table-light" id="admin-records-header"><tr><th>대상</th><th>항목(점수)</th><th>기록자</th></tr></thead><tbody id="admin-records-table"></tbody></table>
         </div></div>
+
+<h6 class="fw-bold text-danger mt-4"><i class="fas fa-user-times me-2"></i>기간별 미출석 현황 조회</h6>
+        <div class="card shadow-sm mb-4">
+            <div class="card-body">
+                <div class="input-group mb-3">
+                    <input type="date" id="missing-start-date" class="form-control">
+                    <span class="input-group-text">~</span>
+                    <input type="date" id="missing-end-date" class="form-control">
+                    <button class="btn btn-danger" onclick="loadMissingStats()">조회</button>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-sm text-center mb-0" style="font-size:0.85em;">
+                        <thead class="table-light" id="admin-missing-header">
+                            <tr><th>날짜(요일)</th><th>활동(시간)</th><th>담당자</th><th>결석 누적</th></tr>
+                        </thead>
+                        <tbody id="admin-missing-table">
+                            <tr><td colspan="4" class="py-3 text-muted">기간을 선택하고 조회 버튼을 눌러주세요.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
     </div>
-</div>
 
 <button id="fab-attendance" class="fab hidden" onclick="checkAttendance()"><i class="fas fa-check-circle me-1"></i> 출석체크</button>
 
 <script>
     let currentUser = null, globalStudents = [], globalRules = [], bulkStudents = [], selectedStudentSingle = null;
     let currentMonday = getMonday(new Date()); 
+    let globalBoardData = { notices: [], normals: [], comments: [] }; 
+    let currentReadPostId = null;
+    let editingPostId = null; 
+    let hasUnsavedChanges = false; // 🔥 저장 상태 추적 변수 추가
 
-    // 엔터키 공통 핸들러
     function handleEnter(e, callback) { if(e.key === 'Enter') { e.preventDefault(); callback(); } }
 
     async function callGAS(action, params = {}) {
@@ -182,24 +259,47 @@
     };
 
     function navigate(viewId) {
+        if (hasUnsavedChanges && viewId !== 'schedule') {
+            Swal.fire({ title: '저장하지 않은 변경사항이 있습니다.', text: '이대로 나가시면 수정 내용이 사라집니다.', icon: 'warning', showCancelButton: true, confirmButtonText: '무시하고 나가기', cancelButtonText: '취소' }).then((result) => {
+                if(result.isConfirmed) {
+                    hasUnsavedChanges = false;
+                    document.getElementById('btn-save-schedule').style.display = 'none';
+                    executeNavigation(viewId);
+                }
+            });
+        } else { executeNavigation(viewId); }
+    }
+
+    function executeNavigation(viewId) {
         document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
         document.getElementById(`view-${viewId}`).classList.add('active');
         document.getElementById('fab-attendance').className = (viewId !== 'login') ? 'fab' : 'fab hidden';
         if(viewId === 'schedule') loadScheduleGrid();
-        if(viewId === 'dashboard') loadTodayYP();
+        if(viewId === 'dashboard') { loadTodayYP(); loadBoardList(); }
         if(viewId === 'my-info') loadMyInfo();
-        if(viewId === 'admin-stats') loadAdminStats();
+        if(viewId === 'admin-stats') {
+            loadAdminStats();
+            // 🔥 미출석 현황 기본 날짜 세팅 및 자동 조회 로직 추가
+            if(!document.getElementById('missing-start-date').value) {
+                document.getElementById('missing-start-date').value = '2026-03-25'; // 시작일 고정
+                document.getElementById('missing-end-date').value = formatDate(new Date()); // 종료일은 오늘
+            }
+            loadMissingStats();
+        }
     }
 
     function applyRBAC() {
-        if (['관리자', '선도부장', '선도차장'].includes(currentUser.role)) document.getElementById('admin-menus').style.display = 'block';
+        if (['관리자', '선도부장', '선도차장'].includes(currentUser.role)) {
+            document.getElementById('admin-menus').style.display = 'block';
+            document.getElementById('notice-check-wrapper').style.display = 'block';
+            document.getElementById('admin-schedule-controls').style.display = 'block';
+        }
     }
 
     async function handleLogin() {
         const id = document.getElementById('login-id').value, pw = document.getElementById('login-pw').value;
         if(!id || !pw) return;
         if(document.getElementById('save-id').checked) localStorage.setItem('yp_saved_id', id); else localStorage.removeItem('yp_saved_id');
-
         Swal.fire({ title: '로그인 중...', didOpen: () => Swal.showLoading() });
         const res = await callGAS('login', { id, pw });
         if (res.success) {
@@ -210,7 +310,7 @@
     }
 
     async function checkAutoLogin() { currentUser = JSON.parse(localStorage.getItem('yp_auth')); loginSuccessProcessing(); }
-
+    
     async function loginSuccessProcessing() {
         applyRBAC();
         document.getElementById('top-nav').style.display = 'flex';
@@ -223,20 +323,154 @@
         }
         navigate('dashboard'); Swal.close();
     }
+    
     function logout() { localStorage.removeItem('yp_auth'); location.reload(); }
 
-    const SCHEDULE_TEMPLATE = [
-        { activity: "아침선도", time: "07:45~08:15" }, { activity: "아침선도", time: "07:45~08:15" },
-        { activity: "점심엘베", time: "12:25~12:40" }, { activity: "점심엘베", time: "12:40~13:00" }, { activity: "점심엘베", time: "13:00~13:15" },
-        { activity: "점심순찰", time: "12:50~13:15" }, { activity: "점심순찰", time: "12:50~13:15" }
-    ];
-    const DAYS_KR = ["일", "월", "화", "수", "목", "금", "토"];
+    // --- 게시판 로직 ---
+    async function loadBoardList() {
+        document.getElementById('board-list-container').innerHTML = `<li class="list-group-item text-center py-4"><span class="spinner-border spinner-border-sm"></span> 불러오는 중...</li>`;
+        const res = await callGAS('getBoardData');
+        if(res.success) {
+            globalBoardData = res;
+            let html = '';
+            res.notices.forEach(p => {
+                html += `<li class="list-group-item board-item board-notice" onclick="readPost('${p.id}')">
+                    <div class="d-flex justify-content-between align-items-center mb-1"><span class="badge bg-danger"><i class="fas fa-bullhorn"></i> 공지</span><small class="text-muted">${p.time}</small></div>
+                    <h6 class="fw-bold mb-1 text-truncate">${p.title}</h6><small class="text-secondary">${p.author}</small>
+                </li>`;
+            });
+            res.normals.forEach(p => {
+                html += `<li class="list-group-item board-item" onclick="readPost('${p.id}')">
+                    <div class="d-flex justify-content-between align-items-center mb-1"><h6 class="fw-bold mb-0 text-truncate" style="max-width: 70%;">${p.title}</h6><small class="text-muted">${p.time.substring(5, 10)}</small></div>
+                    <small class="text-secondary">${p.author}</small>
+                </li>`;
+            });
+            if(html === '') html = `<li class="list-group-item text-center py-4 text-muted">등록된 게시글이 없습니다.</li>`;
+            document.getElementById('board-list-container').innerHTML = html;
+        }
+    }
 
+    function initBoardWrite() {
+        editingPostId = null;
+        document.getElementById('board-write-title').innerText = "새 게시글 작성";
+        document.getElementById('post-title').value = ''; 
+        document.getElementById('post-content').value = ''; 
+        document.getElementById('post-is-notice').checked = false;
+        navigate('board-write');
+    }
+
+    // 🔥 게시글 수정 모드 진입
+    function editPost(postId) {
+        editingPostId = postId;
+        const post = [...globalBoardData.notices, ...globalBoardData.normals].find(p => p.id === postId);
+        document.getElementById('board-write-title').innerText = "게시글 수정";
+        document.getElementById('post-title').value = post.title;
+        document.getElementById('post-content').value = post.content;
+        document.getElementById('post-is-notice').checked = (post.type === '공지');
+        navigate('board-write');
+    }
+
+    // 🔥 게시글 삭제 로직
+    async function deletePost(postId) {
+        const { isConfirmed } = await Swal.fire({
+            title: '삭제하시겠습니까?', text: "게시글과 댓글이 모두 삭제됩니다.", icon: 'warning',
+            showCancelButton: true, confirmButtonColor: '#dc3545', confirmButtonText: '삭제', cancelButtonText: '취소'
+        });
+        if(isConfirmed) {
+            Swal.fire({ title: '삭제 중...', didOpen: () => Swal.showLoading() });
+            const res = await callGAS('deletePost', { payload: JSON.stringify({ user: currentUser, postId }) });
+            if(res.success) {
+                Swal.fire({ icon: 'success', title: '완료', timer: 1000, showConfirmButton: false });
+                navigate('dashboard');
+            } else Swal.fire('오류', res.message, 'error');
+        }
+    }
+
+    async function submitPost() {
+        const title = document.getElementById('post-title').value.trim(), content = document.getElementById('post-content').value.trim(), isNotice = document.getElementById('post-is-notice').checked;
+        if(!title || !content) return Swal.fire('안내', '제목과 내용을 모두 입력하세요.', 'warning');
+        
+        Swal.fire({ title: '처리 중...', didOpen: () => Swal.showLoading() });
+        let res;
+        if(editingPostId) {
+            res = await callGAS('updatePost', { payload: JSON.stringify({ user: currentUser, postId: editingPostId, isNotice, title, content }) });
+        } else {
+            res = await callGAS('savePost', { payload: JSON.stringify({ user: currentUser, isNotice, title, content }) });
+        }
+
+        if(res.success) { 
+            Swal.fire({ icon: 'success', title: '완료', text: res.message, timer: 1000, showConfirmButton: false }); 
+            navigate('dashboard'); 
+        } else Swal.fire('오류', res.message, 'error');
+    }
+
+    function readPost(postId) {
+        currentReadPostId = postId;
+        const post = [...globalBoardData.notices, ...globalBoardData.normals].find(p => p.id === postId);
+        if(!post) return;
+        document.getElementById('read-post-badge').innerHTML = post.type === '공지' ? `<span class="badge bg-danger"><i class="fas fa-bullhorn"></i> 공지사항</span>` : `<span class="badge bg-secondary">일반글</span>`;
+        document.getElementById('read-post-title').innerText = post.title;
+        document.getElementById('read-post-author').innerHTML = `<i class="fas fa-user-circle"></i> ${post.author}`;
+        document.getElementById('read-post-time').innerText = post.time;
+        document.getElementById('read-post-content').innerText = post.content;
+
+        // 🔥 권한 확인 후 수정/삭제 버튼 노출
+        let actionHtml = '';
+        if(post.hakbun === currentUser.hakbun || currentUser.role === '관리자' || currentUser.role === '선도부장') {
+            actionHtml = `<button class="btn btn-sm btn-outline-primary me-1" onclick="editPost('${postId}')"><i class="fas fa-edit"></i> 수정</button>
+                          <button class="btn btn-sm btn-outline-danger me-1" onclick="deletePost('${postId}')"><i class="fas fa-trash-alt"></i> 삭제</button>`;
+        }
+        document.getElementById('read-post-actions').innerHTML = actionHtml;
+
+        renderComments(postId); navigate('board-read');
+    }
+
+    function renderComments(postId) {
+        const comments = globalBoardData.comments.filter(c => c.postId === postId);
+        let html = '';
+        if(comments.length === 0) html = `<p class="text-muted" style="font-size:0.9em;">첫 댓글을 남겨보세요.</p>`;
+        else comments.forEach(c => { html += `<div class="comment-box"><div class="d-flex justify-content-between mb-1"><strong style="font-size:0.9em;">${c.author}</strong><span class="text-muted" style="font-size:0.8em;">${c.time.substring(5, 16)}</span></div><div style="font-size:0.95em; white-space: pre-wrap;">${c.content}</div></div>`; });
+        document.getElementById('comment-list-container').innerHTML = html;
+        document.getElementById('comment-input').value = '';
+    }
+
+    async function submitComment() {
+        const content = document.getElementById('comment-input').value.trim();
+        if(!content) return;
+        Swal.fire({ title: '등록 중...', didOpen: () => Swal.showLoading() });
+        const res = await callGAS('saveComment', { payload: JSON.stringify({ user: currentUser, postId: currentReadPostId, content }) });
+        if(res.success) {
+            Swal.close();
+            const boardRes = await callGAS('getBoardData');
+            if(boardRes.success) { globalBoardData = boardRes; renderComments(currentReadPostId); }
+        }
+    }
+
+    // --- 달력 및 기타 기능 ---
+    const SCHEDULE_TEMPLATE = [ { activity: "아침선도", time: "07:45~08:15" }, { activity: "아침선도", time: "07:45~08:15" }, { activity: "점심엘베", time: "12:25~12:40" }, { activity: "점심엘베", time: "12:40~13:00" }, { activity: "점심엘베", time: "13:00~13:15" }, { activity: "점심순찰", time: "12:50~13:15" }, { activity: "점심순찰", time: "12:50~13:15" } ];
+    const DAYS_KR = ["일", "월", "화", "수", "목", "금", "토"];
     function getMonday(d) { d = new Date(d); var day = d.getDay(), diff = d.getDate() - day + (day == 0 ? -6:1); return new Date(d.setDate(diff)); }
     function formatDate(d) { return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
-    function changeWeek(offset) { currentMonday.setDate(currentMonday.getDate() + (offset * 7)); loadScheduleGrid(); }
+
+    function changeWeek(offset) { 
+        if(hasUnsavedChanges) {
+            Swal.fire({ title: '저장하지 않은 변경사항이 있습니다.', text: '주차를 이동하면 수정 내용이 사라집니다.', icon: 'warning', showCancelButton: true, confirmButtonText: '무시하고 이동', cancelButtonText: '취소' }).then((result) => {
+                if(result.isConfirmed) {
+                    hasUnsavedChanges = false;
+                    document.getElementById('btn-save-schedule').style.display = 'none';
+                    currentMonday.setDate(currentMonday.getDate() + (offset * 7)); 
+                    loadScheduleGrid();
+                }
+            });
+        } else {
+            currentMonday.setDate(currentMonday.getDate() + (offset * 7)); 
+            loadScheduleGrid(); 
+        }
+    }
 
     async function loadScheduleGrid() {
+        hasUnsavedChanges = false;
+        document.getElementById('btn-save-schedule').style.display = 'none';
         document.querySelector('#schedule-grid tbody').innerHTML = `<tr><td colspan="6" class="py-4">일정 로딩 중...</td></tr>`;
         let headerHtml = `<tr><th style="width:18%;">활동</th>`, weekDates = [], todayStr = formatDate(new Date());
         for(let i=0; i<5; i++) {
@@ -249,40 +483,61 @@
 
         const res = await callGAS('getSchedule', { startDate: formatDate(currentMonday) });
         let availableData = res.success ? JSON.parse(JSON.stringify(res.schedule)) : [];
-        
         let html = '';
         SCHEDULE_TEMPLATE.forEach(row => {
             html += `<tr><td style="font-size:0.75em; line-height: 1.2;"><b>${row.activity}</b><br><span class="text-secondary">${row.time}</span></td>`;
             for(let i=0; i<5; i++) {
                 let targetDate = weekDates[i];
                 const index = availableData.findIndex(d => d.date === targetDate && d.activity === row.activity && d.time === row.time);
-                let display = "", currentName = "";
+                let display = "";
                 if (index !== -1) {
-                    const record = availableData[index]; currentName = record.studentName;
+                    const record = availableData[index];
                     display = `<b>${record.studentName}</b><br><small class="text-muted">${record.hakbun}</small>`;
                     availableData.splice(index, 1); 
                 }
+                
                 let cellClass = (currentUser.role === '관리자' || currentUser.role === '선도부장') ? "editable-cell" : "";
-                let onClick = cellClass ? `onclick="editScheduleCell(this, '${targetDate}', '${DAYS_KR[i+1]}', '${row.activity}', '${row.time}', '${currentName}')"` : "";
-                html += `<td class="${targetDate === todayStr ? 'today-bg' : ''} ${cellClass}" ${onClick}>${display}</td>`;
+                // 🔥 서버와 통신하지 않고 화면 조작을 위해 data- 속성 심기
+                let attributes = cellClass ? `data-date="${targetDate}" data-day="${DAYS_KR[i+1]}" data-act="${row.activity}" data-time="${row.time}" onclick="editScheduleCell(this)"` : "";
+                html += `<td class="${targetDate === todayStr ? 'today-bg' : ''} ${cellClass}" ${attributes}>${display}</td>`;
             }
             html += `</tr>`;
         });
         document.querySelector('#schedule-grid tbody').innerHTML = html;
     }
 
-    async function editScheduleCell(cell, date, day, activity, time, currentName) {
-        const { value: newName, isConfirmed } = await Swal.fire({ title: '담당자 수정', input: 'text', inputLabel: '이름 입력 (삭제시 비움)', inputValue: currentName, showCancelButton: true, confirmButtonText: '저장' });
+    async function editScheduleCell(cell) {
+        let currentName = "";
+        const bTag = cell.querySelector('b');
+        if(bTag) currentName = bTag.innerText.trim();
+
+        const { value: newName, isConfirmed } = await Swal.fire({ title: '담당자 수정', input: 'text', inputLabel: '이름 입력 (삭제시 비움)', inputValue: currentName, showCancelButton: true, confirmButtonText: '확인' });
+
         if (isConfirmed && newName !== currentName) {
-            Swal.fire({ title: '반영 중...', didOpen: () => Swal.showLoading() });
-            const res = await callGAS('updateSingleSchedule', { payload: JSON.stringify({ user: currentUser, date, day, activity, time, newName: newName.replace(/\s+/g, '') }) });
-            if (res.success) { Swal.fire({icon: 'success', title: '완료', timer: 1000, showConfirmButton: false}); loadScheduleGrid(); } 
-            else Swal.fire('오류', res.message, 'error');
+            let pureName = newName.replace(/\s+/g, '');
+            if(pureName === "") {
+                cell.innerHTML = ""; cell.removeAttribute('data-name');
+            } else {
+                cell.innerHTML = `<b class="text-primary">${pureName}</b><br><small class="text-danger">저장대기</small>`;
+                cell.setAttribute('data-name', pureName);
+            }
+            cell.style.backgroundColor = '#e2e3e5';
+            hasUnsavedChanges = true;
+            document.getElementById('btn-save-schedule').style.display = 'inline-block';
         }
     }
 
+    // 🔥 오늘 날짜 표시가 추가된 로직
     async function loadTodayYP() {
-        const todayStr = formatDate(new Date()); const res = await callGAS('getSchedule', { startDate: todayStr });
+        const today = new Date();
+        const todayStr = formatDate(today); 
+        const dayStr = DAYS_KR[today.getDay()];
+        const displayDate = `${today.getMonth()+1}월 ${today.getDate()}일 (${dayStr})`;
+        
+        // 제목에 오늘 날짜 추가
+        document.getElementById('today-yp-title').innerHTML = `<i class="fas fa-bullhorn me-2"></i>오늘의 YP 당번 <small class="text-light ms-2" style="font-size:0.8em; font-weight:normal;">(${displayDate})</small>`;
+
+        const res = await callGAS('getSchedule', { startDate: todayStr });
         if(!res.success) return;
         const todays = res.schedule.filter(s => s.date === todayStr);
         let html = '';
@@ -303,7 +558,6 @@
             const sHtml = res.schedules.length === 0 ? `<li class="list-group-item text-muted">예정된 일정이 없습니다.</li>` : 
                 res.schedules.map(s => `<li class="list-group-item"><b>${s.date}(${s.day})</b> - ${s.activity} <span class="badge bg-secondary ms-2">${s.time}</span></li>`).join('');
             document.getElementById('my-schedule-list').innerHTML = sHtml;
-
             const rHtml = res.records.length === 0 ? `<tr><td colspan="3" class="text-muted">기록이 없습니다.</td></tr>` : 
                 res.records.map(r => `<tr><td>${r.date.substring(5)}</td><td>${r.target}</td><td>${r.rule}</td></tr>`).join('');
             document.getElementById('my-records-table').innerHTML = rHtml;
@@ -315,14 +569,37 @@
         const res = await callGAS('getAdminData', { dateStr });
         if(res.success) {
             const aHtml = res.attendance.length === 0 ? `<tr><td colspan="4">일정이 없습니다.</td></tr>` :
-                res.attendance.map(a => `<tr><td>${a.activity}<br><small class="text-muted">${a.time}</small></td><td>${a.name}</td>
-                <td><span class="badge ${a.status.includes('정상')?'bg-success':a.status.includes('미출석')?'bg-danger':'bg-warning'}">${a.status}</span></td>
+                res.attendance.map(a => `<tr class="align-middle"><td>${a.activity}<br><small class="text-muted">${a.time}</small></td><td>${a.name}</td>
+                <td><span class="badge ${a.status.includes('정상')?'bg-success':a.status.includes('미출석')?'bg-danger':'bg-warning'}">${a.status}</span><br><small class="text-secondary" style="font-size:0.75em;">${a.timeLogged !== '-' ? a.timeLogged : ''}</small></td>
                 <td>${a.excuse}</td></tr>`).join('');
             document.getElementById('admin-attendance-table').innerHTML = aHtml;
-
-            const rHtml = res.records.length === 0 ? `<tr><td colspan="3">기록이 없습니다.</td></tr>` :
-                res.records.map(r => `<tr><td>${r.target}</td><td>${r.rule}</td><td>${r.author}</td></tr>`).join('');
+            
+            const isAdmin = currentUser.role === '관리자';
+            document.getElementById('admin-records-header').innerHTML = `<tr><th>대상</th><th>항목(점수)</th><th>기록자</th>${isAdmin ? '<th>관리</th>' : ''}</tr>`;
+            const rHtml = res.records.length === 0 ? `<tr><td colspan="${isAdmin ? 4 : 3}">기록이 없습니다.</td></tr>` :
+                res.records.map(r => {
+                    const delBtn = isAdmin ? `<td><button class="btn btn-sm btn-outline-danger py-0 px-2" onclick="deleteRecord('${String(r.target||'').replace(/'/g, "\\'")}', '${String(r.rule||'').replace(/'/g, "\\'")}', '${String(r.author||'').replace(/'/g, "\\'")}')"><i class="fas fa-times"></i></button></td>` : '';
+                    return `<tr><td class="align-middle">${r.target}</td><td class="align-middle">${r.rule}</td><td class="align-middle">${r.author}</td>${delBtn}</tr>`;
+                }).join('');
             document.getElementById('admin-records-table').innerHTML = rHtml;
+        }
+    }
+
+    async function deleteRecord(target, rule, author) {
+        const dateStr = document.getElementById('admin-date-picker').value;
+        const { isConfirmed } = await Swal.fire({
+            title: '기록 삭제', text: `${target}의 [${rule}] 내역을 삭제하시겠습니까?`, icon: 'warning',
+            showCancelButton: true, confirmButtonColor: '#dc3545', confirmButtonText: '삭제', cancelButtonText: '취소'
+        });
+        if (isConfirmed) {
+            Swal.fire({ title: '삭제 중...', didOpen: () => Swal.showLoading() });
+            const res = await callGAS('deleteEntry', { payload: JSON.stringify({ user: currentUser, date: dateStr, target, rule, author }) });
+            if (res.success) {
+                Swal.fire({ icon: 'success', title: '삭제됨', timer: 1000, showConfirmButton: false });
+                loadAdminStats();
+            } else {
+                Swal.fire('오류', res.message || '삭제에 실패했습니다.', 'error');
+            }
         }
     }
 
@@ -332,118 +609,170 @@
         const list = globalStudents.filter(s=>s.hakbun.includes(q)||s.name.includes(q)).slice(0,5);
         document.getElementById('search-results').innerHTML = list.map(s=>`<li class="list-group-item search-result-item" onclick="selectedStudentSingle={hakbun:'${s.hakbun}',name:'${s.name}'}; document.getElementById('search-student').value='${s.hakbun} ${s.name}'; this.parentElement.innerHTML='';">${s.hakbun} ${s.name}</li>`).join('');
     }
-
-    function selectFirstStudent() {
-        const first = document.querySelector('#search-results .search-result-item');
-        if(first) first.click();
-    }
-
-    function renderBulkStudentList() {
-        document.getElementById('bulk-student-list').innerHTML = bulkStudents.map((b,i)=>`
-            <li class="list-group-item d-flex justify-content-between align-items-center">${b.hakbun} ${b.name} <button class="btn btn-sm text-danger" onclick="removeBulkStudent(${i})"><i class="fas fa-times"></i></button></li>
-        `).join('');
-    }
-
+    function selectFirstStudent() { const first = document.querySelector('#search-results .search-result-item'); if(first) first.click(); }
+    function renderBulkStudentList() { document.getElementById('bulk-student-list').innerHTML = bulkStudents.map((b,i)=>`<li class="list-group-item d-flex justify-content-between align-items-center">${b.hakbun} ${b.name} <button class="btn btn-sm text-danger" onclick="removeBulkStudent(${i})"><i class="fas fa-times"></i></button></li>`).join(''); }
     function removeBulkStudent(index) { bulkStudents.splice(index, 1); renderBulkStudentList(); }
-
     function addBulkStudent() {
         const q = document.getElementById('bulk-search').value;
         const s = globalStudents.find(x => x.hakbun === q || x.name === q);
         if(s && !bulkStudents.find(b=>b.hakbun===s.hakbun)) { bulkStudents.push(s); renderBulkStudentList(); document.getElementById('bulk-search').value = ''; }
     }
-
     async function submitSingleEntry() {
         const rule = document.getElementById('single-rule-select').value;
         if(!selectedStudentSingle || !rule) return Swal.fire('누락', '모두 입력하세요', 'warning');
         executeSubmit({ user: currentUser, type: 'single', rule, students: [selectedStudentSingle] });
     }
-
     async function submitBulkEntry() {
         const rule = document.getElementById('bulk-rule-select').value;
         if(bulkStudents.length===0 || !rule) return Swal.fire('누락', '모두 입력하세요', 'warning');
         executeSubmit({ user: currentUser, type: 'bulk', rule, students: bulkStudents });
     }
-
     async function executeSubmit(payload) {
         Swal.fire({ title: '전송 중...', didOpen: () => Swal.showLoading() });
         const res = await callGAS('submitEntry', { payload: JSON.stringify(payload) });
-        if(res.success) {
-            Swal.fire('완료', res.message, 'success');
-            document.getElementById('search-student').value = ''; selectedStudentSingle = null;
-            bulkStudents = []; renderBulkStudentList();
-        } else Swal.fire('오류', res.message, 'error');
+        if(res.success) { Swal.fire('완료', res.message, 'success'); document.getElementById('search-student').value = ''; selectedStudentSingle = null; bulkStudents = []; renderBulkStudentList(); } else Swal.fire('오류', res.message, 'error');
     }
-
-    // 🔥 수동 출석 체크 로직 (사유 입력)
     async function checkAttendance() {
-        // 우선 사유 없이 출석 요청하여 시간 유효성 확인
         Swal.fire({ title: '확인 중...', didOpen: () => Swal.showLoading() });
         let res = await callGAS('checkAttendance', { payload: JSON.stringify({ user: currentUser }) });
-        
         if(res.success) return Swal.fire('안내', res.message, 'success');
-        
-        // 담당 시간이 아닐 경우 사유 요구
         if(res.requireExcuse) {
-            const { value: excuse } = await Swal.fire({
-                title: '지연 출석 사유', text: res.message, input: 'textarea',
-                inputPlaceholder: '사유를 10글자 이상 입력하세요.', showCancelButton: true,
-                inputValidator: (val) => { if (!val || val.length < 10) return '10글자 이상 작성해주세요!'; }
-            });
+            const { value: excuse } = await Swal.fire({ title: '지연 출석 사유', text: res.message, input: 'textarea', inputPlaceholder: '사유를 10글자 이상 입력하세요.', showCancelButton: true, inputValidator: (val) => { if (!val || val.length < 10) return '10글자 이상 작성해주세요!'; } });
             if (excuse) {
                 Swal.fire({ title: '전송 중...', didOpen: () => Swal.showLoading() });
                 const finalRes = await callGAS('checkAttendance', { payload: JSON.stringify({ user: currentUser, excuse }) });
-                if(finalRes.success) Swal.fire('완료', finalRes.message, 'success');
-                else Swal.fire('오류', finalRes.message, 'error');
+                if(finalRes.success) Swal.fire('완료', finalRes.message, 'success'); else Swal.fire('오류', finalRes.message, 'error');
             }
-        } else {
-            Swal.fire('오류', res.message, 'error');
-        }
+        } else Swal.fire('오류', res.message, 'error');
     }
-
     function showSettings() {
         Swal.fire({
-            title: '비번 변경', 
-            html: `<input type="password" id="old-pw" class="swal2-input" placeholder="현재 비번" onkeydown="handleEnter(event, Swal.clickConfirm)">
-                   <input type="password" id="new-pw" class="swal2-input" placeholder="새 비번" onkeydown="handleEnter(event, Swal.clickConfirm)">
-                   <input type="password" id="new-pw-confirm" class="swal2-input" placeholder="새 비번 확인" onkeydown="handleEnter(event, Swal.clickConfirm)">`,
+            title: '비번 변경', html: `<input type="password" id="old-pw" class="swal2-input" placeholder="현재 비번" onkeydown="handleEnter(event, Swal.clickConfirm)"><input type="password" id="new-pw" class="swal2-input" placeholder="새 비번" onkeydown="handleEnter(event, Swal.clickConfirm)"><input type="password" id="new-pw-confirm" class="swal2-input" placeholder="새 비번 확인" onkeydown="handleEnter(event, Swal.clickConfirm)">`,
             preConfirm: () => {
                 const o = document.getElementById('old-pw').value, n1 = document.getElementById('new-pw').value, n2 = document.getElementById('new-pw-confirm').value;
                 if(!o || !n1 || !n2) return Swal.showValidationMessage('세 칸을 모두 입력하세요.');
                 if(n1 !== n2) return Swal.showValidationMessage('새 비밀번호가 일치하지 않습니다.');
                 return { oldPw: o, newPw: n1 };
             }
-        }).then(async (res) => {
-            if(res.isConfirmed) {
-                const rt = await callGAS('changePw', { id: currentUser.id, oldPw: res.value.oldPw, newPw: res.value.newPw });
-                if(rt.success) Swal.fire('성공', '변경되었습니다.', 'success'); else Swal.fire('오류', rt.message, 'error');
-            }
-        });
+        }).then(async (res) => { if(res.isConfirmed) { const rt = await callGAS('changePw', { id: currentUser.id, oldPw: res.value.oldPw, newPw: res.value.newPw }); if(rt.success) Swal.fire('성공', '변경되었습니다.', 'success'); else Swal.fire('오류', rt.message, 'error'); } });
     }
-
-    function downloadExcelTemplate() { /* 기존 로직 생략 없이 동일 */
-        let data = [["날짜(YYYY-MM-DD)", "요일", "활동", "시작시간", "종료시간", "이름"]];
-        let tempDates = [];
-        for(let i=0; i<5; i++) {
-            let d = new Date(currentMonday); d.setDate(currentMonday.getDate() + i); tempDates.push({ dateStr: formatDate(d), dayStr: DAYS_KR[i+1] });
-        }
+    function downloadExcelTemplate() {
+        let data = [["날짜(YYYY-MM-DD)", "요일", "활동", "시작시간", "종료시간", "이름"]], tempDates = [];
+        for(let i=0; i<5; i++) { let d = new Date(currentMonday); d.setDate(currentMonday.getDate() + i); tempDates.push({ dateStr: formatDate(d), dayStr: DAYS_KR[i+1] }); }
         tempDates.forEach(td => { SCHEDULE_TEMPLATE.forEach(st => { const [start, end] = st.time.split('~'); data.push([td.dateStr, td.dayStr, st.activity, start, end, ""]); }); });
         const ws = XLSX.utils.aoa_to_sheet(data); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "YP일정양식"); XLSX.writeFile(wb, `YP일정양식_${formatDate(currentMonday)}.xlsx`);
     }
-
-    function handleExcelUpload(e) { /* 기존 로직 생략 없이 동일 */
+    function handleExcelUpload(e) {
         const file = e.target.files[0]; if(!file) return; const reader = new FileReader();
         reader.onload = async function(e) {
             const data = new Uint8Array(e.target.result); const json = XLSX.utils.sheet_to_json(XLSX.read(data, {type: 'array'}).Sheets[XLSX.read(data, {type: 'array'}).SheetNames[0]], {raw: false});
-            let scheduleData = [];
-            json.forEach(row => { if(row["이름"]) scheduleData.push({ date: row["날짜(YYYY-MM-DD)"], day: row["요일"], activity: row["활동"], time: `${row["시작시간"]}~${row["종료시간"]}`, studentName: row["이름"].toString().replace(/\s+/g, '') }); });
-            if(scheduleData.length === 0) return Swal.fire('안내', '입력된 이름 데이터가 없습니다.', 'info');
-            Swal.fire({ title: '업로드 및 검증 중...', didOpen: () => Swal.showLoading() });
+            let scheduleData = []; json.forEach(row => { if(row["이름"]) scheduleData.push({ date: row["날짜(YYYY-MM-DD)"], day: row["요일"], activity: row["활동"], time: `${row["시작시간"]}~${row["종료시간"]}`, studentName: row["이름"].toString().replace(/\s+/g, '') }); });
+            if(scheduleData.length === 0) return Swal.fire('안내', '입력된 데이터가 없습니다.', 'info');
+            Swal.fire({ title: '업로드 중...', didOpen: () => Swal.showLoading() });
             const res = await callGAS('uploadSchedule', { payload: JSON.stringify({ user: currentUser, scheduleData }) });
-            if(res.success) { Swal.fire('성공', res.message, 'success'); loadScheduleGrid(); } else Swal.fire('업로드 실패', res.message, 'error');
+            if(res.success) { Swal.fire('성공', res.message, 'success'); loadScheduleGrid(); } else Swal.fire('실패', res.message, 'error');
             document.getElementById('excel-upload').value = ''; 
-        };
-        reader.readAsArrayBuffer(file);
+        }; reader.readAsArrayBuffer(file);
     }
+
+  // 🔥 새 기능: 변경된 전체 달력을 서버에 한 번에 저장
+    async function saveGridChanges() {
+        let scheduleData = [];
+        const cells = document.querySelectorAll('.editable-cell');
+        
+        cells.forEach(cell => {
+            let name = cell.getAttribute('data-name');
+            if(name === null) {
+                const bTag = cell.querySelector('b');
+                if(bTag) name = bTag.innerText.trim();
+            }
+            if(name && name.trim() !== "") {
+                scheduleData.push({
+                    date: cell.getAttribute('data-date'), day: cell.getAttribute('data-day'),
+                    activity: cell.getAttribute('data-act'), time: cell.getAttribute('data-time'),
+                    studentName: name
+                });
+            }
+        });
+
+        let targetDates = [];
+        for(let i=0; i<5; i++) {
+            let d = new Date(currentMonday); d.setDate(currentMonday.getDate() + i);
+            targetDates.push(formatDate(d));
+        }
+
+        Swal.fire({ title: '전체 저장 중...', didOpen: () => Swal.showLoading() });
+        const res = await callGAS('saveWeeklySchedule', { payload: JSON.stringify({ user: currentUser, targetDates, scheduleData }) });
+        
+        if(res.success) { 
+            Swal.fire({icon: 'success', title: '저장 완료', timer: 1000, showConfirmButton: false}); 
+            hasUnsavedChanges = false;
+            document.getElementById('btn-save-schedule').style.display = 'none';
+            loadScheduleGrid(); 
+        } else {
+            Swal.fire('저장 실패', res.message, 'error');
+        }
+    }
+
+  // 🔥 미출석 현황 불러오기 및 렌더링
+    async function loadMissingStats() {
+        const startDate = document.getElementById('missing-start-date').value;
+        const endDate = document.getElementById('missing-end-date').value;
+        
+        if(!startDate || !endDate) return Swal.fire('안내', '시작일과 종료일을 모두 선택하세요.', 'warning');
+
+        Swal.fire({ title: '조회 중...', didOpen: () => Swal.showLoading() });
+        const res = await callGAS('getUnattendedStats', { payload: JSON.stringify({ startDate, endDate }) });
+        
+        if(res.success) {
+            Swal.close();
+            let html = '';
+            const isAdmin = currentUser.role === '관리자';
+            document.getElementById('admin-missing-header').innerHTML = `<tr><th>날짜(요일)</th><th>활동(시간)</th><th>담당자</th><th>결석 누적</th>${isAdmin ? '<th>비고</th>' : ''}</tr>`;
+
+            if(res.missingList.length === 0) {
+                html = `<tr><td colspan="${isAdmin ? 5 : 4}" class="py-3">해당 기간에 결석한 인원이 없습니다. 🎉</td></tr>`;
+            } else {
+                res.missingList.forEach(m => {
+                    let noteHtml = '';
+                    if(isAdmin) {
+                        const noteText = m.note ? m.note : '<span class="text-muted" style="opacity:0.4;"><i class="fas fa-edit"></i></span>';
+                        noteHtml = `<td class="align-middle"><button class="btn btn-sm btn-light py-0 px-2" style="font-size:0.85em;" onclick="editMissingNote('${m.date}', '${m.activity}', '${m.hakbun}', '${m.name}', '${(m.note || '').replace(/'/g, "\\'")}')">${noteText}</button></td>`;
+                    }
+                    html += `<tr>
+                        <td class="align-middle">${m.date}<br><small class="text-muted">(${m.day})</small></td>
+                        <td class="align-middle">${m.activity}<br><small class="text-muted">${m.time}</small></td>
+                        <td class="align-middle"><b>${m.name}</b><br><small class="text-muted">${m.hakbun}</small></td>
+                        <td class="align-middle"><span class="badge bg-danger fs-6">${res.studentCounts[m.hakbun].count}회</span></td>
+                        ${noteHtml}
+                    </tr>`;
+                });
+            }
+            document.getElementById('admin-missing-table').innerHTML = html;
+        } else {
+            Swal.fire('오류', res.message, 'error');
+        }
+    }
+
+    async function editMissingNote(date, activity, hakbun, name, currentNote) {
+        const { value: noteText, isConfirmed } = await Swal.fire({
+            title: '미출석 비고', input: 'text', inputLabel: `${date} ${activity} - ${name}`,
+            inputValue: currentNote, inputPlaceholder: '결석 사유/참고 사항 입력 (삭제 시 비워두기)',
+            showCancelButton: true, confirmButtonText: '저장', cancelButtonText: '취소'
+        });
+        
+        if (isConfirmed) {
+            Swal.fire({ title: '저장 중...', didOpen: () => Swal.showLoading() });
+            const res = await callGAS('saveMissingNote', { payload: JSON.stringify({ user: currentUser, date, activity, hakbun, note: noteText }) });
+            if (res.success) {
+                Swal.fire({ icon: 'success', title: '저장됨', timer: 1000, showConfirmButton: false });
+                loadMissingStats();
+            } else {
+                Swal.fire('오류', res.message, 'error');
+            }
+        }
+    }
+
 </script>
 </body>
 </html>
